@@ -3,24 +3,25 @@
 run_review(ctx) is the single public entry point.  It receives a PRContext
 built by the webhook handler and drives the full review pipeline:
 
-    repo.compare(base, head)          ← fetch real diff via GitHub API
+    repo.compare(base, head)
          │
          ▼
     diff_extractor.extract_changed_files()
          │
          ▼
-    ast_parser.extract_functions()    ← per file, identify changed functions
+    ast_parser.extract_functions()
          │
-         ├── vector_store.query_similar()   ← retrieve past team conventions
+         ├── vector_store.get_similar_reviews()    ← past findings for this repo
+         ├── vector_store.get_relevant_conventions() ← team coding rules
          │
          ▼
-    review_prompt | ChatOpenAI        ← generate per-file findings
+    review_prompt | ChatOpenAI        ← per-file findings
          │
          ├── github_client.post_review_comment()
-         └── vector_store.store_review()
+         └── vector_store.add_review()             ← persist for future PRs
          │
          ▼
-    summary_prompt | ChatOpenAI       ← roll up all findings
+    summary_prompt | ChatOpenAI
          │
          ├── github_client.post_summary_comment()
          └── slack_client.notify_slack_rich()
@@ -29,8 +30,10 @@ built by the webhook handler and drives the full review pipeline:
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from langchain_openai import ChatOpenAI
 
@@ -42,22 +45,26 @@ from integrations.github_client import (
     post_summary_comment,
 )
 from integrations.slack_client import notify_slack, notify_slack_rich
-from memory.vector_store import ReviewMemory, query_similar, store_review
+from memory.vector_store import (
+    ReviewMetadata,
+    ReviewResult,
+    add_review,
+    get_relevant_conventions,
+    get_similar_reviews,
+)
 from parser.ast_parser import extract_functions
 from parser.diff_extractor import extract_changed_files
 
-# Import PRContext at TYPE_CHECKING time only to avoid a circular import.
-# At runtime we receive it as a plain object — no isinstance check needed.
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from webhook.handler import PRContext
 
 logger = logging.getLogger(__name__)
 
-# Maximum patch length sent to the LLM — guards against token overflow.
 _MAX_PATCH_CHARS = 4_000
-# Maximum combined review findings sent to the summary prompt.
 _MAX_SUMMARY_CHARS = 12_000
+
+_SEVERITY_RE = re.compile(r"\[(CRITICAL|WARNING|SUGGESTION)\]", re.IGNORECASE)
 
 
 # ── Internal types ─────────────────────────────────────────────────────────────
@@ -75,7 +82,6 @@ class FileFinding:
 
 
 def _build_llm() -> ChatOpenAI:
-    """Return a configured ChatOpenAI instance."""
     return ChatOpenAI(
         model=settings.OPENAI_MODEL,
         temperature=0.2,
@@ -91,38 +97,64 @@ def _review_file(
     repo_full_name: str,
     pr_number: int,
     pr_title: str,
-    cf,                    # parser.diff_extractor.ChangedFile
+    cf,
 ) -> str:
     """Run the review chain for a single ChangedFile.
 
-    Accepts individual PR-identity values rather than a full PRContext so
-    the function stays unit-testable without constructing the whole dataclass.
+    Queries both past similar reviews and relevant team conventions to build
+    rich context for the LLM prompt.
 
     Args:
         llm:            Shared ChatOpenAI instance.
-        repo_full_name: "owner/repo" string.
+        repo_full_name: "owner/repo".
         pr_number:      Pull request number.
-        pr_title:       Pull request title shown in the prompt.
+        pr_title:       PR title shown in the prompt.
         cf:             ChangedFile dataclass from diff_extractor.
 
     Returns:
         Raw LLM response string (Markdown-formatted findings).
     """
-    # Retrieve up to 3 semantically similar past comments.
-    past_reviews = query_similar(cf.patch, n_results=3)
-    if past_reviews:
-        past_text = "\n\n".join(
-            f"[{p['repo']} PR#{p['pr_number']} / {p.get('filename', '?')}]\n{p['comment']}"
-            for p in past_reviews
-        )
-    else:
-        past_text = "No similar past reviews found for this codebase yet."
+    # ── Memory: past reviews for this repo ───────────────────────────────
+    past_reviews: list[ReviewResult] = get_similar_reviews(
+        cf.patch, repo=repo_full_name, n=3
+    )
 
-    # Identify changed functions via AST for richer prompt context.
+    # ── Memory: relevant team conventions ────────────────────────────────
+    conventions: list[str] = get_relevant_conventions(
+        cf.patch, language=cf.language, n=3
+    )
+
+    # ── Build past_conventions block for the prompt ───────────────────────
+    context_parts: list[str] = []
+
+    if past_reviews:
+        context_parts.append("### Similar past review findings:")
+        _STATUS = {1: "✓ accepted", 0: "✗ rejected", -1: "unrated"}
+        for r in past_reviews:
+            status = _STATUS.get(r.accepted, "unrated")
+            context_parts.append(
+                f"[{r.repo} / {r.file}] ({status})\n{r.comment}"
+            )
+
+    if conventions:
+        context_parts.append("### Team conventions that apply:")
+        for rule in conventions:
+            context_parts.append(f"• {rule}")
+
+    past_text = (
+        "\n\n".join(context_parts)
+        if context_parts
+        else "No prior context available for this codebase yet."
+    )
+
+    # ── AST summary ───────────────────────────────────────────────────────
     functions = extract_functions("\n".join(cf.added_lines), cf.language)
     if functions:
         fn_summary = "\n".join(
             f"  • {fn.name}() — lines {fn.start_line}–{fn.end_line}"
+            f"  [complexity={fn.complexity}"
+            f"{', has_docstring' if fn.has_docstring else ''}"
+            f"{', method' if fn.is_method else ''}]"
             for fn in functions
         )
     else:
@@ -148,18 +180,8 @@ def _review_file(
 def run_review(ctx: "PRContext") -> None:
     """Orchestrate a full PR review from diff fetch to posted comments.
 
-    Called by the webhook handler as a background task.  Never raises —
-    all exceptions are caught, logged, and converted to a Slack alert so
-    the team knows a review failed without crashing the worker process.
-
-    Pipeline:
-        1. Fetch diff via repo.compare(base_sha, head_sha).
-        2. Parse diff into ChangedFile objects.
-        3. For each file: query memory → LLM review → post comment → store.
-        4. Roll up all findings into a summary → post + Slack.
-
-    Args:
-        ctx: PRContext dataclass built by the webhook handler.
+    Never raises — all exceptions are caught and converted to a Slack alert
+    so a failing review doesn't crash the Uvicorn worker.
     """
     log = logger.getChild("run_review")
     extra = ctx.log_extra()
@@ -167,20 +189,13 @@ def run_review(ctx: "PRContext") -> None:
     log.info("Review pipeline started", extra=extra)
 
     try:
-        # ── Step 1: Fetch full diff via compare() ─────────────────────────
-        log.debug(
-            "Fetching diff %s..%s",
-            ctx.base_sha[:12], ctx.head_sha[:12],
-            extra=extra,
-        )
         raw_files = get_pr_diff(
             repo_full_name=ctx.repo_full_name,
             base_sha=ctx.base_sha,
             head_sha=ctx.head_sha,
         )
-
-        # ── Step 2: Parse into ChangedFile dataclasses ────────────────────
         changed_files = extract_changed_files(raw_files)
+
         if not changed_files:
             log.info("No reviewable files in diff — skipping", extra=extra)
             post_summary_comment(
@@ -190,37 +205,25 @@ def run_review(ctx: "PRContext") -> None:
             )
             return
 
-        log.info(
-            "Reviewing %d file(s)",
-            len(changed_files),
-            extra=extra | {"file_count": len(changed_files)},
-        )
+        log.info("Reviewing %d file(s)", len(changed_files),
+                 extra=extra | {"file_count": len(changed_files)})
 
-        # ── Step 3: Per-file review ───────────────────────────────────────
         llm = _build_llm()
         findings: list[FileFinding] = []
 
         for cf in changed_files:
             log.debug("Reviewing file: %s", cf.filename, extra=extra)
-
             try:
                 comment = _review_file(llm, ctx.repo_full_name, ctx.pr_number, ctx.pr_title, cf)
             except Exception:
-                log.exception(
-                    "LLM review failed for %s — skipping file",
-                    cf.filename,
-                    extra=extra,
-                )
+                log.exception("LLM review failed for %s — skipping", cf.filename, extra=extra)
                 continue
 
             findings.append(FileFinding(
-                filename=cf.filename,
-                language=cf.language,
-                comment=comment,
-                patch=cf.patch,
+                filename=cf.filename, language=cf.language,
+                comment=comment, patch=cf.patch,
             ))
 
-            # Post per-file review comment
             post_review_comment(
                 repo_full_name=ctx.repo_full_name,
                 pr_number=ctx.pr_number,
@@ -229,17 +232,19 @@ def run_review(ctx: "PRContext") -> None:
                 body=_format_file_comment(cf.filename, comment),
             )
 
-            # Persist to vector store for future PRs
-            store_review(ReviewMemory(
-                id=str(uuid.uuid4()),
+            # Persist this review for future context
+            add_review(
                 code_snippet=cf.patch[:2_000],
                 comment=comment[:1_000],
-                repo=ctx.repo_full_name,
-                pr_number=ctx.pr_number,
-                filename=cf.filename,
-            ))
+                metadata=ReviewMetadata(
+                    file=cf.filename,
+                    severity=_extract_severity(comment),
+                    category="general",
+                    repo=ctx.repo_full_name,
+                    timestamp=datetime.now(timezone.utc).isoformat(),
+                ),
+            )
 
-        # ── Step 4: Summary comment ───────────────────────────────────────
         if not findings:
             log.warning("All per-file reviews failed — no summary to post", extra=extra)
             return
@@ -254,7 +259,6 @@ def run_review(ctx: "PRContext") -> None:
 
         post_summary_comment(ctx.repo_full_name, ctx.pr_number, verdict_body)
 
-        # ── Step 5: Slack notification ────────────────────────────────────
         verdict_line = _extract_verdict(verdict_body)
         notify_slack_rich(
             repo=ctx.repo_full_name,
@@ -264,19 +268,16 @@ def run_review(ctx: "PRContext") -> None:
             files_reviewed=len(findings),
         )
 
-        log.info(
-            "Review pipeline complete",
-            extra=extra | {"files_reviewed": len(findings), "verdict": verdict_line},
-        )
+        log.info("Review pipeline complete",
+                 extra=extra | {"files_reviewed": len(findings), "verdict": verdict_line})
 
     except Exception:
         log.exception("Review pipeline crashed", extra=extra)
-        # Best-effort Slack alert — don't let this raise either.
         try:
             notify_slack(
-                f":x: CodeReviewBot failed to review {ctx.repo_full_name} "
+                f":x: CodeReviewBot failed reviewing {ctx.repo_full_name} "
                 f"PR #{ctx.pr_number} (review_id={ctx.review_id}). "
-                f"Check server logs for details."
+                f"Check server logs."
             )
         except Exception:
             pass
@@ -286,7 +287,6 @@ def run_review(ctx: "PRContext") -> None:
 
 
 def _format_file_comment(filename: str, comment: str) -> str:
-    """Wrap per-file LLM output in a consistent Markdown header."""
     return (
         f"## 🤖 CodeReviewBot — `{filename}`\n\n"
         f"{comment}\n\n"
@@ -294,17 +294,19 @@ def _format_file_comment(filename: str, comment: str) -> str:
     )
 
 
-def _extract_verdict(summary: str) -> str:
-    """Pull the APPROVED / NEEDS CHANGES / CRITICAL ISSUES line from the summary.
+def _extract_severity(text: str) -> str:
+    """Parse the first [SEVERITY] tag from LLM output. Defaults to WARNING."""
+    m = _SEVERITY_RE.search(text)
+    return m.group(1).upper() if m else "WARNING"
 
-    Falls back to a generic string if the LLM didn't follow the template.
-    """
-    for line in summary.splitlines():
-        line = line.strip().upper()
-        if "APPROVED" in line:
-            return "APPROVED"
-        if "CRITICAL" in line:
-            return "CRITICAL ISSUES"
-        if "NEEDS CHANGES" in line or "NEEDS_CHANGES" in line:
-            return "NEEDS CHANGES"
+
+def _extract_verdict(summary: str) -> str:
+    """Pull the overall verdict line from the summary comment."""
+    upper = summary.upper()
+    if "CRITICAL" in upper:
+        return "CRITICAL ISSUES"
+    if "NEEDS CHANGES" in upper or "NEEDS_CHANGES" in upper:
+        return "NEEDS CHANGES"
+    if "APPROVED" in upper:
+        return "APPROVED"
     return "REVIEWED"
