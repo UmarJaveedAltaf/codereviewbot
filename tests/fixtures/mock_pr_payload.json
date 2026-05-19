@@ -1,0 +1,36 @@
+{
+  "action": "opened",
+  "number": 42,
+  "pull_request": {
+    "number": 42,
+    "title": "Add divide function",
+    "body": "Implements safe integer division with a zero-guard.",
+    "state": "open",
+    "draft": false,
+    "html_url": "https://github.com/testorg/testrepo/pull/42",
+    "user": { "login": "dev-user", "id": 1, "type": "User" },
+    "head": {
+      "label": "testorg:feature/divide",
+      "ref": "feature/divide",
+      "sha": "abc123def456abc123def456abc123def456abc1"
+    },
+    "base": {
+      "label": "testorg:main",
+      "ref": "main",
+      "sha": "000000aabbcc000000aabbcc000000aabbcc0000"
+    },
+    "additions": 15,
+    "deletions": 2,
+    "changed_files": 1
+  },
+  "repository": {
+    "id": 12345,
+    "name": "testrepo",
+    "full_name": "testorg/testrepo",
+    "private": false,
+    "html_url": "https://github.com/testorg/testrepo",
+    "owner": { "login": "testorg", "id": 99 },
+    "default_branch": "main"
+  },
+  "sender": { "login": "dev-user", "id": 1, "type": "User" }
+}
