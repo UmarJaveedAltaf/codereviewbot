@@ -1,15 +1,28 @@
-.PHONY: install run test lint docker-build docker-up docker-down clean
+.PHONY: install dev run dashboard test test-fast lint format seed \
+        docker-build docker-up docker-down docker-logs mock-webhook clean
 
 # ── Local dev ─────────────────────────────────────────────────────────────────
 
 install:
 	pip install -r requirements.txt
 
+install-dev:
+	pip install -r requirements.txt -r requirements-dev.txt
+
+## dev: run FastAPI with auto-reload (local development)
+dev:
+	uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+## run: alias for dev (kept for backward compatibility)
 run:
 	uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 dashboard:
 	streamlit run dashboard/app.py
+
+## seed: load default team conventions into the vector store
+seed:
+	python scripts/seed_conventions.py
 
 test:
 	pytest tests/ -v --cov=. --cov-report=term-missing
@@ -38,7 +51,7 @@ docker-down:
 	docker compose down
 
 docker-logs:
-	docker compose logs -f api
+	docker compose logs -f codereviewbot
 
 # ── Cleanup ───────────────────────────────────────────────────────────────────
 

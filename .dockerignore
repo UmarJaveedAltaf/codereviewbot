@@ -1,0 +1,60 @@
+# ── Secrets & environment ─────────────────────────────────────────────────────
+.env
+*.env
+.env.*
+
+# ── Vector-store data (use a named volume instead) ────────────────────────────
+.chroma/
+chroma_data/
+
+# ── Python artefacts ──────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Test & coverage output ────────────────────────────────────────────────────
+tests/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# ── Linter / formatter caches ─────────────────────────────────────────────────
+.ruff_cache/
+.mypy_cache/
+
+# ── Git ───────────────────────────────────────────────────────────────────────
+.git/
+.github/
+.gitignore
+
+# ── Docker files (not needed inside the image) ────────────────────────────────
+Dockerfile
+.dockerignore
+docker-compose.yml
+docker-compose.override.yml
+
+# ── Dev tooling ───────────────────────────────────────────────────────────────
+Makefile
+requirements-dev.txt
+
+# ── Documentation ─────────────────────────────────────────────────────────────
+README.md
+*.md
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

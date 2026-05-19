@@ -35,6 +35,7 @@ between tests.
 from __future__ import annotations
 
 import logging
+import os
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -103,18 +104,37 @@ class ConventionMetadata:
 # ── ChromaDB client / collection accessors ────────────────────────────────────
 
 
-def _get_chroma_client() -> chromadb.PersistentClient:
-    """Return the shared ChromaDB persistent client, creating it lazily.
+def _get_chroma_client():
+    """Return the shared ChromaDB client, creating it lazily.
 
-    Exposed as a named function (not inline logic) so tests can monkeypatch it
-    to return a ``chromadb.EphemeralClient()`` for full isolation.
+    Client selection
+    ----------------
+    When the ``CHROMA_HOST`` environment variable is set (e.g. in Docker where
+    a standalone ChromaDB container is running) an ``HttpClient`` is returned
+    so all requests go over HTTP to that service.
+
+    When ``CHROMA_HOST`` is absent (local development, tests) a
+    ``PersistentClient`` is returned, writing to ``CHROMA_PERSIST_DIR``.
+
+    Exposed as a named function so tests can monkeypatch it to return a
+    ``chromadb.EphemeralClient()`` for full in-memory isolation.
     """
     global _chroma_client
     if _chroma_client is None:
-        _chroma_client = chromadb.PersistentClient(
-            path=settings.CHROMA_PERSIST_DIR,
-            settings=ChromaSettings(anonymized_telemetry=False),
-        )
+        chroma_host = os.environ.get("CHROMA_HOST", "")
+        if chroma_host:
+            chroma_port = int(os.environ.get("CHROMA_PORT", "8000"))
+            logger.info("ChromaDB: connecting to HTTP server %s:%d", chroma_host, chroma_port)
+            _chroma_client = chromadb.HttpClient(
+                host=chroma_host,
+                port=chroma_port,
+            )
+        else:
+            logger.debug("ChromaDB: using PersistentClient at %s", settings.CHROMA_PERSIST_DIR)
+            _chroma_client = chromadb.PersistentClient(
+                path=settings.CHROMA_PERSIST_DIR,
+                settings=ChromaSettings(anonymized_telemetry=False),
+            )
     return _chroma_client
 
 

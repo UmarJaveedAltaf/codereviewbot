@@ -15,7 +15,11 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S", "E501"]
+"tests/*"     = ["S", "E501"]
+# dashboard uses st.* magic globals and long markdown strings
+"dashboard/*" = ["E501", "B006", "S"]
+# seed script uses print() for operator feedback and has long docstrings
+"scripts/*"   = ["T201", "E501", "S"]
 
 [tool.coverage.run]
 source = ["."]

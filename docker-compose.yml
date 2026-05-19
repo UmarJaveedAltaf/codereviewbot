@@ -1,34 +1,111 @@
 version: "3.9"
 
+# ── CodeReviewBot — full stack ────────────────────────────────────────────────
+#
+# Services
+# --------
+#   codereviewbot  FastAPI webhook receiver + review pipeline  (port 8000)
+#   streamlit      Metrics dashboard                           (port 8501)
+#   chroma         ChromaDB vector-store server                (port 8001 → 8000)
+#
+# Usage
+# -----
+#   cp .env.example .env          # fill in real API keys
+#   docker compose up -d          # start all three services
+#   docker compose logs -f        # tail logs
+#   docker compose down -v        # stop and remove volumes
+#
+# The codereviewbot and streamlit services connect to ChromaDB over HTTP
+# (CHROMA_HOST=chroma) so they never touch the filesystem directly — all
+# vector-store state lives in the named volume chroma_data.
+
 services:
-  api:
-    build: .
+
+  # ── API (FastAPI) ────────────────────────────────────────────────────────────
+  codereviewbot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: codereviewbot:latest
+    container_name: codereviewbot_api
     ports:
       - "8000:8000"
     env_file:
       - .env
-    volumes:
-      - chroma_data:/data/chroma
+    environment:
+      # Route ChromaDB calls to the standalone chroma service.
+      CHROMA_HOST: chroma
+      CHROMA_PORT: "8000"
+    depends_on:
+      chroma:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request, sys;
+          r = urllib.request.urlopen('http://localhost:8000/health', timeout=4);
+          sys.exit(0 if r.status == 200 else 1)
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 15s
 
-  dashboard:
-    build: .
-    command: ["streamlit", "run", "dashboard/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+  # ── Dashboard (Streamlit) ─────────────────────────────────────────────────────
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: codereviewbot:latest
+    container_name: codereviewbot_dashboard
+    command:
+      - streamlit
+      - run
+      - dashboard/app.py
+      - --server.port=8501
+      - --server.address=0.0.0.0
+      - --server.headless=true
     ports:
       - "8501:8501"
     env_file:
       - .env
-    volumes:
-      - chroma_data:/data/chroma
+    environment:
+      CHROMA_HOST: chroma
+      CHROMA_PORT: "8000"
     depends_on:
-      - api
+      chroma:
+        condition: service_healthy
     restart: unless-stopped
 
+  # ── ChromaDB vector-store ─────────────────────────────────────────────────────
+  chroma:
+    image: chromadb/chroma:0.5.20
+    container_name: codereviewbot_chroma
+    ports:
+      # Expose on 8001 externally so it doesn't clash with the API on 8000.
+      - "8001:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      ANONYMIZED_TELEMETRY: "false"
+      ALLOW_RESET: "false"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          python -c
+          "import urllib.request;
+          urllib.request.urlopen('http://localhost:8000/api/v1/heartbeat', timeout=4)"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+# ── Named volumes ─────────────────────────────────────────────────────────────
 volumes:
   chroma_data:
+    driver: local

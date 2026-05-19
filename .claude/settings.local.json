@@ -6,7 +6,8 @@
       "Bash(pip install *)",
       "Bash(python -m pytest tests/test_agent.py -v)",
       "Bash(python -m pytest tests/ -v)",
-      "Bash(python -m pytest tests/test_integrations.py -v)"
+      "Bash(python -m pytest tests/test_integrations.py -v)",
+      "Bash(python -m pytest tests/ -v --tb=short)"
     ]
   }
 }

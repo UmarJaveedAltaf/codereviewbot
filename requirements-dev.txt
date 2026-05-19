@@ -1,0 +1,10 @@
+# ── Development / CI tooling ──────────────────────────────────────────────────
+# Install alongside requirements.txt:
+#   pip install -r requirements.txt -r requirements-dev.txt
+# or just use: make install-dev
+
+# Linting & formatting
+ruff>=0.7.0
+
+# Type checking (optional local use)
+mypy>=1.13.0
