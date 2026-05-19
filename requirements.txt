@@ -1,0 +1,40 @@
+# Web framework
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-multipart==0.0.12
+
+# LLM / AI
+langchain==0.3.9
+langchain-openai==0.2.10
+langchain-core==0.3.21
+openai==1.57.0
+
+# Vector store
+chromadb==0.5.20
+
+# GitHub
+PyGithub==2.5.0
+
+# AST parsing
+tree-sitter==0.23.2
+tree-sitter-python==0.23.4
+tree-sitter-javascript==0.23.1
+
+# Slack
+slack-sdk==3.33.3
+
+# Dashboard
+streamlit==1.40.2
+
+# Config / env
+pydantic==2.10.3
+pydantic-settings==2.6.1
+python-dotenv==1.0.1
+
+# HTTP client
+httpx==0.28.1
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.24.0
+pytest-cov==6.0.0
