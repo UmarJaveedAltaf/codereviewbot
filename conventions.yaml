@@ -1,0 +1,217 @@
+# Team coding conventions for CodeReviewBot
+# Loaded by scripts/seed_conventions.py into the team_conventions vector store.
+#
+# Fields:
+#   rule      (required) — the full convention text injected into LLM prompts
+#   category  (required) — security | python_style | error_handling | performance | testing
+#   language  (optional) — "python" | "javascript" | "" (empty = applies to all languages)
+#   added_by  (optional) — defaults to "system"
+
+conventions:
+
+  # ── Security (4) ─────────────────────────────────────────────────────────────
+
+  - category: security
+    language: ""
+    rule: >
+      Never store secrets, API keys, passwords, or tokens directly in source code
+      or configuration files.  Use environment variables or a secrets manager
+      (e.g. AWS Secrets Manager, HashiCorp Vault).  Flag any string that looks
+      like a credential: long hex strings, base64 blobs, or keys prefixed with
+      common provider patterns (sk-, ghp_, AKIA...).
+    added_by: security-team
+
+  - category: security
+    language: ""
+    rule: >
+      Always validate and sanitise user-supplied input before it reaches a
+      database query, shell command, file path, or template renderer.  Treat
+      every external value as untrusted regardless of its origin — including
+      HTTP headers, query params, JSON bodies, and form fields.
+    added_by: security-team
+
+  - category: security
+    language: python
+    rule: >
+      Use parameterised queries (cursor.execute(sql, params)) or an ORM at all
+      times.  Never build SQL strings by concatenation or f-string interpolation
+      with user input — this is the primary vector for SQL injection.
+      Example BAD:  cursor.execute(f"SELECT * FROM users WHERE id={user_id}")
+      Example GOOD: cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+    added_by: security-team
+
+  - category: security
+    language: ""
+    rule: >
+      Sanitise data before logging.  Never log passwords, authentication tokens,
+      PII (names, emails, phone numbers, SSNs), or payment card data at any log
+      level — including DEBUG.  Mask or omit sensitive fields; log only IDs and
+      non-sensitive context.
+    added_by: security-team
+
+  # ── Python style (4) ──────────────────────────────────────────────────────────
+
+  - category: python_style
+    language: python
+    rule: >
+      All public function and method signatures must include explicit type hints
+      for every parameter and the return type.  Use the built-in types
+      (list, dict, tuple) rather than typing.List / typing.Dict in Python 3.9+.
+      Annotate Optional parameters as "T | None" (union syntax, Python 3.10+)
+      or "Optional[T]" for compatibility.
+    added_by: tech-lead
+
+  - category: python_style
+    language: python
+    rule: >
+      Use dataclasses (@dataclass) or Pydantic BaseModel for all structured data
+      that crosses module boundaries.  Passing plain dicts with implicit schemas
+      makes refactoring brittle and prevents static analysis.  Only use dicts
+      when the key set is genuinely dynamic.
+    added_by: tech-lead
+
+  - category: python_style
+    language: python
+    rule: >
+      Keep functions and methods under 50 lines.  If a function grows beyond
+      that, extract cohesive logic into well-named helpers.  Long functions
+      correlate with high cyclomatic complexity and are harder to test in
+      isolation.  A function that needs a comment to explain each section is
+      a function that should be split.
+    added_by: tech-lead
+
+  - category: python_style
+    language: python
+    rule: >
+      Use f-strings for all string interpolation in Python 3.6+.  Avoid
+      %-formatting and str.format() in new code — f-strings are faster, more
+      readable, and catch name errors at definition time rather than runtime.
+      Exception: logging calls must use lazy % formatting to avoid evaluating
+      expensive expressions when the log level is disabled.
+    added_by: tech-lead
+
+  # ── Error handling (4) ────────────────────────────────────────────────────────
+
+  - category: error_handling
+    language: python
+    rule: >
+      Never use a bare "except:" or "except Exception:" clause without
+      immediately logging or re-raising.  Silently swallowing exceptions hides
+      bugs and makes debugging impossible.  At minimum, log with
+      logger.exception("message") which captures the full traceback, then
+      decide whether to re-raise, convert to a typed exception, or handle.
+    added_by: tech-lead
+
+  - category: error_handling
+    language: python
+    rule: >
+      Catch the most specific exception type possible.  Prefer
+      "except ValueError" over "except Exception" and "except requests.Timeout"
+      over "except requests.RequestException".  Only broaden the except clause
+      when you genuinely intend to handle every possible failure the same way.
+    added_by: tech-lead
+
+  - category: error_handling
+    language: ""
+    rule: >
+      All HTTP client calls (requests, httpx, aiohttp, fetch, axios) must
+      include an explicit timeout.  Without a timeout, a slow or unresponsive
+      downstream service will block a thread or coroutine indefinitely.
+      Recommended defaults: connect_timeout=5s, read_timeout=30s.
+    added_by: tech-lead
+
+  - category: error_handling
+    language: python
+    rule: >
+      Functions that can fail for domain-specific reasons should raise a typed,
+      project-defined exception (e.g. ValidationError, NotFoundError) rather
+      than returning None or a sentinel value.  This makes error paths explicit
+      in type annotations and prevents callers from forgetting to check return
+      values.  Only use None returns for "not found" in optional-lookup helpers.
+    added_by: tech-lead
+
+  # ── Performance (4) ───────────────────────────────────────────────────────────
+
+  - category: performance
+    language: python
+    rule: >
+      Avoid N+1 query patterns: never call a database query inside a loop over a
+      queryset.  Use bulk fetching (select_related, prefetch_related in Django;
+      joinedload in SQLAlchemy; IN-clause batch queries elsewhere).  A loop with
+      a DB call inside is an automatic flag — document why it is acceptable if
+      the dataset is provably bounded to a tiny size.
+    added_by: performance-team
+
+  - category: performance
+    language: python
+    rule: >
+      Cache the results of expensive, pure, frequently-called computations using
+      functools.lru_cache or functools.cache.  For distributed caches (Redis,
+      Memcached), document the TTL and the cache key construction.  Always
+      include a cache invalidation strategy in the design — "we'll add it later"
+      is a known source of stale-data bugs.
+    added_by: performance-team
+
+  - category: performance
+    language: python
+    rule: >
+      Prefer generators (yield) over list comprehensions when the full result
+      sequence is consumed exactly once and does not need random access.
+      Generators produce items lazily, keeping memory usage O(1) regardless of
+      input size.  Use list() to materialise when you need len(), indexing, or
+      multiple iteration passes.
+    added_by: performance-team
+
+  - category: performance
+    language: ""
+    rule: >
+      Database columns used in WHERE clauses, JOIN conditions, or ORDER BY
+      expressions must have an index.  Adding an index to a production table
+      requires a migration and, for large tables, a strategy (e.g. CREATE INDEX
+      CONCURRENTLY in PostgreSQL) that avoids locking.  Flag any query that
+      filters on an un-indexed column and has no comment explaining why an index
+      is intentionally absent.
+    added_by: performance-team
+
+  # ── Testing (4) ───────────────────────────────────────────────────────────────
+
+  - category: testing
+    language: python
+    rule: >
+      Every public function and method must have at least one unit test that
+      covers its primary happy-path behaviour.  New code submitted without tests
+      will not be merged.  Test files must mirror the source structure:
+      tests/test_<module>.py for src/<module>.py.
+    added_by: tech-lead
+
+  - category: testing
+    language: python
+    rule: >
+      Use pytest fixtures for all test setup and teardown instead of
+      setUp/tearDown class methods or module-level globals.  Fixtures are
+      composable, lazily evaluated, and their scope (function/class/module/session)
+      is explicit.  Autouse fixtures must be documented with a comment explaining
+      why they apply globally.
+    added_by: tech-lead
+
+  - category: testing
+    language: ""
+    rule: >
+      Mock at the narrowest possible boundary.  Patch the function your code
+      calls, not the underlying library it delegates to.  Prefer dependency
+      injection over module-level monkeypatching — inject a fake through a
+      constructor parameter or function argument so mocking requires no
+      sys.modules manipulation.
+    added_by: tech-lead
+
+  - category: testing
+    language: python
+    rule: >
+      Test function names must follow the pattern:
+      test_<function_name>_<scenario>_<expected_outcome>.
+      Examples: test_divide_by_zero_raises_value_error,
+                test_get_user_not_found_returns_none,
+                test_send_email_smtp_error_logs_and_reraises.
+      Descriptive names act as living documentation and make CI failures
+      immediately self-explanatory without opening the test file.
+    added_by: tech-lead
