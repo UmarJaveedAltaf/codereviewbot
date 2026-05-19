@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python scripts/_create_pr.py)",
+      "Bash(del \"C:\\\\Users\\\\altaf\\\\OneDrive\\\\Desktop\\\\codereviewbot\\\\scripts\\\\_create_pr.py\")",
+      "Bash(pip install *)",
+      "Bash(python -m pytest tests/test_agent.py -v)",
+      "Bash(python -m pytest tests/ -v)"
+    ]
+  }
+}
