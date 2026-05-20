@@ -72,6 +72,8 @@ class ReviewMetadata:
     repo: str = ""
     timestamp: str = ""            # ISO-8601; auto-filled when empty
     accepted: int = -1             # -1 = unrated, 0 = rejected, 1 = accepted
+    pr_number: int = 0             # PR that triggered the review (0 = unknown)
+    pr_title: str = ""             # PR title for display in the dashboard
 
 
 @dataclass
@@ -214,6 +216,8 @@ def add_review(
             "accepted": metadata.accepted,
             "repo": metadata.repo,
             "timestamp": metadata.timestamp,
+            "pr_number": metadata.pr_number,
+            "pr_title": metadata.pr_title,
         }],
     )
     logger.debug("Stored review %s for %s / %s", review_id[:8], metadata.repo, metadata.file)
