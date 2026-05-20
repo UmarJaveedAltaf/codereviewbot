@@ -551,6 +551,137 @@
       letter-spacing: 0.06em;
     }
 
+    /* ── Quick Setup ─────────────────────────────────────────────── */
+    #quick-setup {
+      padding: 80px 0;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .setup-steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      margin-top: 48px;
+      position: relative;
+    }
+
+    /* Horizontal connector rule that runs across the top of all 3 cards */
+    .setup-steps::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        var(--green) 20%,
+        var(--cyan) 50%,
+        var(--green) 80%,
+        transparent 100%
+      );
+      opacity: 0.35;
+      z-index: 2;
+    }
+
+    .setup-step {
+      border: 1px solid var(--border);
+      border-top: none;           /* replaced by the gradient rule above */
+      padding: 32px 28px 28px;
+      background: rgba(0,255,65,0.02);
+      position: relative;
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .setup-step:not(:last-child) { border-right: none; }
+
+    .setup-step:hover {
+      border-color: var(--green);
+      background: rgba(0,255,65,0.04);
+      box-shadow: 0 0 28px rgba(0,255,65,0.07);
+      z-index: 1;
+    }
+
+    .step-num {
+      font-size: 11px;
+      color: var(--green);
+      letter-spacing: 0.14em;
+      font-weight: bold;
+      margin-bottom: 10px;
+      text-shadow: 0 0 8px var(--green);
+    }
+
+    .step-title {
+      font-size: 14px;
+      color: #e8ffe8;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+
+    .step-code-block {
+      background: #050508;
+      border: 1px solid rgba(0,255,65,0.11);
+      padding: 9px 14px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      overflow-x: auto;
+      white-space: pre;
+      position: relative;
+      line-height: 1.65;
+    }
+
+    /* subtle scanline on each code block */
+    .step-code-block::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.05) 2px,
+        rgba(0,0,0,0.05) 4px
+      );
+      pointer-events: none;
+    }
+
+    .step-prompt  { color: var(--green); }
+    .step-cmd     { color: #e8ffe8; }
+    .step-comment { color: var(--text-dim); }
+    .step-output  { color: var(--cyan); }
+
+    .step-desc {
+      color: var(--text-dim);
+      font-size: 12px;
+      line-height: 1.7;
+      margin-top: 14px;
+    }
+
+    .step-desc code {
+      color: var(--cyan);
+      font-size: 11px;
+    }
+
+    /* Arrow connectors between steps on desktop */
+    .step-arrow {
+      display: none;   /* hidden — borders do the job on desktop */
+    }
+
+    /* ── Mobile ──────────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .setup-steps { grid-template-columns: 1fr; }
+      .setup-step:not(:last-child) {
+        border-right: 1px solid var(--border);
+        border-bottom: none;
+      }
+      .setup-steps::before { display: none; }
+    }
+
     /* ── Mobile ──────────────────────────────────────────────────── */
     @media (max-width: 640px) {
       .nav-links { display: none; }
@@ -573,7 +704,7 @@
       <li><a href="#stats">Pricing</a></li>
       <li><a href="https://github.com/UmarJaveedAltaf/codereviewbot" target="_blank" rel="noopener">GitHub</a></li>
     </ul>
-    <a href="https://github.com/UmarJaveedAltaf/codereviewbot" class="btn btn-primary" target="_blank" rel="noopener">Connect repo_</a>
+    <a href="#quick-setup" class="btn btn-primary">Connect repo_</a>
   </div>
 </nav>
 
@@ -593,7 +724,7 @@
       15 seconds, before a single human reviewer opens the diff.
     </p>
     <div class="hero-cta">
-      <a href="https://github.com/UmarJaveedAltaf/codereviewbot" class="btn btn-primary" target="_blank" rel="noopener">
+      <a href="#quick-setup" class="btn btn-primary">
         &gt; Get started
       </a>
       <a href="#demo" class="btn btn-outline">&gt; See it in action</a>
@@ -720,6 +851,73 @@
         <div class="stat-num">70%</div>
         <div class="stat-label">acceptance rate</div>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── QUICK SETUP ──────────────────────────────────────────────────── -->
+<section id="quick-setup">
+  <div class="container">
+    <div class="section-header">
+      <span class="tag">get started</span>
+      <h2>// QUICK SETUP</h2>
+      <p>Three steps from zero to automated code review.</p>
+    </div>
+
+    <div class="setup-steps">
+
+      <!-- Step 1 -->
+      <div class="setup-step">
+        <div class="step-num">[STEP 01 / 03]</div>
+        <div class="step-title">Clone &amp; configure</div>
+        <div class="step-code-block"><span class="step-prompt">$ </span><span class="step-cmd">git clone https://github.com/UmarJaveedAltaf/codereviewbot</span></div>
+        <div class="step-code-block"><span class="step-prompt">$ </span><span class="step-cmd">cd codereviewbot</span></div>
+        <div class="step-code-block"><span class="step-prompt">$ </span><span class="step-cmd">cp .env.example .env</span>
+<span class="step-comment"># add GOOGLE_API_KEY + GITHUB_TOKEN</span></div>
+        <div class="step-code-block"><span class="step-prompt">$ </span><span class="step-cmd">docker-compose up -d</span>
+<span class="step-output">  [OK] server listening on :8000</span></div>
+        <p class="step-desc">
+          One <code>docker-compose up</code> starts the webhook server,
+          ChromaDB vector store, and Streamlit dashboard together.
+          No manual installs required.
+        </p>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="setup-step">
+        <div class="step-num">[STEP 02 / 03]</div>
+        <div class="step-title">Register the webhook</div>
+        <div class="step-code-block"><span class="step-comment"># GitHub &rarr; repo &rarr; Settings &rarr; Webhooks &rarr; Add webhook</span></div>
+        <div class="step-code-block"><span class="step-comment">Payload URL  </span>
+<span class="step-cmd">https://&lt;your-host&gt;:8000/webhook</span></div>
+        <div class="step-code-block"><span class="step-comment">Content type </span><span class="step-cmd">application/json</span>
+<span class="step-comment">Secret       </span><span class="step-cmd">$GITHUB_WEBHOOK_SECRET</span>
+<span class="step-comment">Events       </span><span class="step-cmd">Pull requests</span></div>
+        <div class="step-code-block"><span class="step-output">  [OK] webhook verified by GitHub</span>
+<span class="step-output">  [OK] HMAC-SHA256 signature valid</span></div>
+        <p class="step-desc">
+          The bot validates every payload with an HMAC-SHA256 signature
+          check — no unauthenticated requests get through. Copy the secret
+          from your <code>.env</code> into the GitHub webhook form.
+        </p>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="setup-step">
+        <div class="step-num">[STEP 03 / 03]</div>
+        <div class="step-title">Open a pull request</div>
+        <div class="step-code-block"><span class="step-comment"># push a branch — the bot fires automatically</span></div>
+        <div class="step-code-block"><span class="step-prompt">$ </span><span class="step-cmd">git push origin feature/my-change</span></div>
+        <div class="step-code-block"><span class="step-output">  [OK] webhook received — PR #48</span>
+<span class="step-output">  [OK] Gemini review posted (11.2s)</span>
+<span class="step-output">  [OK] Slack: #dev-reviews notified</span></div>
+        <p class="step-desc">
+          Inline comments appear on the diff within seconds. CRITICAL
+          findings surface immediately; warnings and suggestions guide
+          the author without blocking the flow.
+        </p>
+      </div>
+
     </div>
   </div>
 </section>
