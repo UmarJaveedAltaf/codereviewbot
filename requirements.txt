@@ -4,11 +4,11 @@ uvicorn[standard]==0.32.1
 python-multipart==0.0.12
 
 # LLM / AI
+# Note: langchain-google-genai 2.x uses the new google-genai SDK (not the
+# legacy google-generativeai package).  Both provide Gemini model access.
 langchain==0.3.9
-langchain-openai==0.2.10
-langchain-core==0.3.21
-openai==1.57.0
-tiktoken==0.8.0
+langchain-google-genai==2.0.11
+langchain-core==0.3.86
 
 # Vector store
 chromadb==0.5.20

@@ -107,9 +107,9 @@ def sample_changed_file() -> dict:
 def _fake_embed(text: str) -> list[float]:
     """Deterministic 8-dimensional fake embedding derived from the text's MD5.
 
-    Dimension 8 is far smaller than the real 1536 but ChromaDB accepts any
-    consistent dimensionality, making tests fast without mocking the entire
-    OpenAI client.
+    Dimension 8 is far smaller than the real 768 (text-embedding-004) but
+    ChromaDB accepts any consistent dimensionality, making tests fast without
+    mocking the entire Google API client.
     """
     digest = hashlib.md5(text.encode()).digest()  # 16 bytes
     return [b / 255.0 for b in digest[:8]]

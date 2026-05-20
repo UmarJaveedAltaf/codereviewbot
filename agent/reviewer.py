@@ -1,8 +1,8 @@
 """LangChain review orchestrator — Phase 4.
 
-Structured-output pipeline using GPT-4o and LangChain's
-``with_structured_output()`` so every LLM response is validated as a Pydantic
-model before it reaches any downstream code.
+Structured-output pipeline using Gemini (via ChatGoogleGenerativeAI) and
+LangChain's ``with_structured_output()`` so every LLM response is validated
+as a Pydantic model before it reaches any downstream code.
 
 Public API
 ----------
@@ -29,7 +29,7 @@ import time
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Literal
 
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 
 from agent.prompts import review_prompt, summary_prompt
@@ -125,28 +125,21 @@ class PRSummary(BaseModel):
 # ── Token counting ─────────────────────────────────────────────────────────────
 
 
-def _count_tokens(text: str, model: str = "gpt-4o") -> int:
-    """Return the approximate token count for *text* under *model*.
+def _count_tokens(text: str, model: str = "gemini-1.5-flash") -> int:
+    """Return the approximate token count for *text*.
 
-    Uses tiktoken when available for an exact count.  Falls back to the
-    rule-of-thumb ``max(1, len(text) // 4)`` so this function never raises
-    in environments where tiktoken is not installed (e.g. CI without the
-    optional dependency).
+    Uses the ~4 characters-per-token heuristic, which is model-agnostic and
+    requires no additional dependencies.  The *model* parameter is accepted for
+    API compatibility but is not used.
 
     Args:
         text:  The string to measure.
-        model: Model name passed to ``tiktoken.encoding_for_model``.
+        model: Ignored — kept for call-site compatibility.
 
     Returns:
         Non-negative integer token estimate.
     """
-    try:
-        import tiktoken  # optional; graceful fallback below
-        enc = tiktoken.encoding_for_model(model)
-        return len(enc.encode(text))
-    except Exception:
-        # tiktoken not installed, unknown model, or encode error → fallback
-        return max(1, len(text) // 4) if text else 0
+    return max(1, len(text) // 4) if text else 0
 
 
 # ── Retry wrapper ──────────────────────────────────────────────────────────────
@@ -194,12 +187,12 @@ def _invoke_with_retry(chain, inputs: dict, max_retries: int = _MAX_RETRIES):
 # ── LLM factory ───────────────────────────────────────────────────────────────
 
 
-def _build_llm(temperature: float = 0.2) -> ChatOpenAI:
-    """Construct a ChatOpenAI instance from application settings."""
-    return ChatOpenAI(
-        model=settings.OPENAI_MODEL,
+def _build_llm(temperature: float = 0.2) -> ChatGoogleGenerativeAI:
+    """Construct a ChatGoogleGenerativeAI instance from application settings."""
+    return ChatGoogleGenerativeAI(
+        model=settings.GEMINI_MODEL,
         temperature=temperature,
-        api_key=settings.OPENAI_API_KEY,
+        google_api_key=settings.GOOGLE_API_KEY,
     )
 
 
@@ -207,7 +200,7 @@ def _build_llm(temperature: float = 0.2) -> ChatOpenAI:
 
 
 def _review_file(
-    llm: ChatOpenAI,
+    llm: ChatGoogleGenerativeAI,
     repo_full_name: str,
     pr_number: int,
     pr_title: str,
@@ -307,7 +300,7 @@ def _review_file(
 # ── PR-level summary ──────────────────────────────────────────────────────────
 
 
-def _summarize(llm: ChatOpenAI, file_reviews: list[FileReview]) -> PRSummary:
+def _summarize(llm: ChatGoogleGenerativeAI, file_reviews: list[FileReview]) -> PRSummary:
     """Aggregate per-file findings into an overall ``PRSummary``.
 
     Args:
@@ -458,7 +451,7 @@ def run_review(ctx: "PRContext") -> None:
             extra=extra | {"file_count": len(changed_files)},
         )
 
-        llm: ChatOpenAI = _build_llm()
+        llm: ChatGoogleGenerativeAI = _build_llm()
         file_reviews: list[FileReview] = []
 
         for cf in changed_files:

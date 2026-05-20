@@ -1,6 +1,6 @@
 """Tests for agent/reviewer.py — Phase 4 structured LLM review agent.
 
-All LLM calls are mocked — no OpenAI API key required.
+All LLM calls are mocked — no Google API key required.
 
 Test classes
 ------------
@@ -220,8 +220,8 @@ class TestCountTokens:
         assert _count_tokens("") == 0
 
     def test_unknown_model_falls_back_gracefully(self) -> None:
-        # An unrecognised model name causes tiktoken.encoding_for_model to
-        # raise KeyError; the fallback path must still return a non-negative int.
+        # The model parameter is ignored; the char-based estimator always
+        # returns a non-negative int regardless of the model name supplied.
         count = _count_tokens("hello world hello world", model="no-such-model-xyz")
         assert isinstance(count, int)
         assert count >= 0

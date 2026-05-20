@@ -7,7 +7,13 @@
       "Bash(python -m pytest tests/test_agent.py -v)",
       "Bash(python -m pytest tests/ -v)",
       "Bash(python -m pytest tests/test_integrations.py -v)",
-      "Bash(python -m pytest tests/ -v --tb=short)"
+      "Bash(python -m pytest tests/ -v --tb=short)",
+      "Bash(pip show *)",
+      "Bash(pip index *)",
+      "Bash(python -c \"import langchain; import langchain_google_genai; print\\('imports OK'\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(python scripts/seed_conventions.py)",
+      "Bash(python -m pytest tests/ -q --tb=short)"
     ]
   }
 }

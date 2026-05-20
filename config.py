@@ -5,7 +5,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     # LLM
-    OPENAI_API_KEY: str
+    GOOGLE_API_KEY: str
 
     # GitHub
     GITHUB_TOKEN: str
@@ -23,8 +23,8 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     # LLM model selection
-    OPENAI_MODEL: str = "gpt-4o"
-    EMBEDDING_MODEL: str = "text-embedding-3-small"
+    GEMINI_MODEL: str = "gemini-1.5-flash"
+    EMBEDDING_MODEL: str = "models/gemini-embedding-001"
 
 
 settings = Settings()

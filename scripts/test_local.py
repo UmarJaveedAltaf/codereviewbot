@@ -16,6 +16,11 @@ import sys
 from pathlib import Path
 
 import httpx
+import httpx
+from dotenv import load_dotenv
+
+
+load_dotenv()
 
 PAYLOAD_PATH = Path(__file__).parent.parent / "tests" / "fixtures" / "mock_pr_payload.json"
 

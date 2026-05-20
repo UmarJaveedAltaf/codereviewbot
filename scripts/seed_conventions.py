@@ -57,7 +57,7 @@ def _convention_id(rule_text: str, language: str, category: str) -> str:
 
 
 def _truncate(text: str, width: int = 72) -> str:
-    return textwrap.shorten(text.strip(), width=width, placeholder="…")
+    return textwrap.shorten(text.strip(), width=width, placeholder="...")
 
 
 # ── Core logic ─────────────────────────────────────────────────────────────────
@@ -124,7 +124,7 @@ def seed(
         convention_id = add_convention(rule_text, meta)
         seeded += 1
         print(
-            f"  ✓ {convention_id[:8]}…  [{category}] ({lang_label})\n"
+            f"  + {convention_id[:8]}...  [{category}] ({lang_label})\n"
             f"    {_truncate(rule_text)}"
         )
 

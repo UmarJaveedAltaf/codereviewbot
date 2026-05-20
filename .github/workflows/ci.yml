@@ -57,7 +57,7 @@ jobs:
     env:
       # Dummy values so pydantic-settings / config.py doesn't raise on import.
       # No real network calls are made — all external I/O is mocked in tests.
-      OPENAI_API_KEY: "ci-placeholder"
+      GOOGLE_API_KEY: "ci-placeholder"
       GITHUB_TOKEN: "ci-placeholder"
       GITHUB_WEBHOOK_SECRET: "ci-test-secret"
       SLACK_WEBHOOK_URL: "https://hooks.slack.com/ci-placeholder"
