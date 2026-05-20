@@ -159,4 +159,4 @@ codereviewbot/
 
 ---
 
-Built by [Umar Javeed Altaf](https://github.com/UmarJaveedAltaf) · MS Artificial Intelligence, Northeastern University
+Built by [Umar Javeed Altaf](https://github.com/UmarJaveedAltaf) · 
