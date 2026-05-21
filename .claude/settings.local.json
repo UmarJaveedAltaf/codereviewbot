@@ -14,7 +14,10 @@
       "Bash(python -c ' *)",
       "Bash(python scripts/seed_conventions.py)",
       "Bash(python -m pytest tests/ -q --tb=short)",
-      "Bash(python scripts/seed_reviews.py --reset)"
+      "Bash(python scripts/seed_reviews.py --reset)",
+      "Bash(Get-Item \"C:\\\\Users\\\\altaf\\\\OneDrive\\\\Desktop\\\\codereviewbot\\\\frontend\\\\index.html\")",
+      "Bash(Select-Object Name, Length, LastWriteTime)",
+      "Bash(ls -lh \"/mnt/c/Users/altaf/OneDrive/Desktop/codereviewbot/frontend/index.html\")"
     ]
   }
 }

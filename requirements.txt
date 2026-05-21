@@ -2,6 +2,7 @@
 fastapi==0.115.5
 uvicorn[standard]==0.32.1
 python-multipart==0.0.12
+aiofiles==24.1.0      # required by FastAPI's FileResponse for async file serving
 
 # LLM / AI
 # Note: langchain-google-genai 2.x uses the new google-genai SDK (not the
