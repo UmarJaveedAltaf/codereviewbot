@@ -43,6 +43,7 @@ COPY --chown=botuser:botuser agent/          agent/
 COPY --chown=botuser:botuser config.py       config.py
 COPY --chown=botuser:botuser conventions.yaml conventions.yaml
 COPY --chown=botuser:botuser dashboard/      dashboard/
+COPY --chown=botuser:botuser frontend/       frontend/
 COPY --chown=botuser:botuser integrations/   integrations/
 COPY --chown=botuser:botuser main.py         main.py
 COPY --chown=botuser:botuser memory/         memory/
